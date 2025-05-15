@@ -13,13 +13,11 @@ class GitErrorHandler:
         self.work_dir = work_dir
 
     def handle_error(self, error: GitError) -> None:
-        if error.git_ops == "commit":
+        if error.git_ops == "_commit":
             logging.warning("检测 commit 失败，准备回滚")
             rollback_success = self.try_rollback()
             if rollback_success:
                 logging.warning("回滚成功")
-
-
 
 
     def try_rollback(self) -> bool:
