@@ -4,7 +4,7 @@ import sys
 import time
 import logging
 import yaml
-
+from utils import *
 from GitClient import GitClient
 from GitError import GitError
 from GitErrorHandler import GitErrorHandler
@@ -108,8 +108,11 @@ def try_commit():
         git_client.do_sync_my_repo_with_remote()
         # 生成新分支名
         branch_name = git_client.generate_new_branch_name()
-        git_client.do_create_branch(branch_name)
-        logging.info("生成新分支名：%s", branch_name)
+        logging.info("使用新分支名 %s", branch_name)
+        if not check_local_branch(LOCAL_REPO_PATH,branch_name):
+            logging.info("分支 %s 不存在，进行创建", branch_name)
+            git_client.do_create_branch(branch_name)
+            logging.info("分支 %s 创建完成", branch_name)
         # 尝试进行提交
 
         git_client.add_local_commit()
@@ -126,19 +129,17 @@ def try_commit():
             GITHUB_USERNAME + ":" + branch_name,
             pr_title,
             pr_body
-
         )
-
         git_client.do_create_pull_request(pull_request_info)
     except FileNotFoundError as e:
-        logging.error("发生文件未找到错误:%s", e)
+        logging.error("发生文件未找到错误: %s", e)
         return False
     except GitError as e:
-        logging.error("发生 Git 错误:%s", e)
+        logging.error("发生 Git 错误: %s", e)
         git_error_handler.handle_error(e)
         return False
     except Exception as e:
-        logging.error("发生未知错误:%s", e)
+        logging.error("发生未知错误: %s", e)
         return False
 
     return success

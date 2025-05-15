@@ -57,14 +57,17 @@ class GitClient:
         """
         remote_name = self.upstream_remote_repo
         try:
-            subprocess.run(['git', 'checkout', 'main'], cwd=self.local_repo_path, check=True)
+            subprocess.run(['git', 'checkout', 'main'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                           cwd=self.local_repo_path, check=True)
             logging.info("执行从 主仓库 远程拉取 git fetch")
-            subprocess.run(['git', 'fetch', remote_name], cwd=self.local_repo_path, check=True)
+            subprocess.run(['git', 'fetch', remote_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                           cwd=self.local_repo_path, check=True)
             logging.info("执行从 主仓库 与本地的合并操作")
-            subprocess.run(['git', 'pull', remote_name, 'main'], cwd=self.local_repo_path, check=True)
+            subprocess.run(['git', 'pull', remote_name, 'main'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                           cwd=self.local_repo_path, check=True)
         except subprocess.CalledProcessError as e:
-            logging.error("尝试与远程仓库同步时发生错误！返回码：%d 错误信息：%s", e.returncode, e.stderr)
-            raise GitError("pull", remote_name + " main") from e
+            logging.error("尝试与远程仓库同步时发生错误！\n返回码：%d\n 错误信息：%s", e.returncode, e.stderr)
+            raise GitError("git", "pull", remote_name + " main") from e
         logging.info("Git 同步完成")
 
     def do_sync_my_repo_with_remote(self):
@@ -73,10 +76,11 @@ class GitClient:
         """
         logging.info("开始将自己的仓库与主仓库同步")
         try:
-            subprocess.run(['git', 'push', 'origin', 'main'], cwd=self.local_repo_path, check=True)
+            subprocess.run(['git', 'push', 'origin', 'main'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                           cwd=self.local_repo_path, check=True)
         except subprocess.CalledProcessError as e:
-            logging.error("尝试将自己的仓库与远程仓库同步时发生错误！返回码：%d 错误信息：%s", e.returncode, e.stderr)
-            raise GitError("push", self.remote_my_repo + " main") from e
+            logging.error("尝试将自己的仓库与远程仓库同步时发生错误！\n返回码：%d\n 错误信息：%s", e.returncode, e.stderr)
+            raise GitError("git", "push", self.remote_my_repo + " main") from e
         logging.info("自己的仓库同步完成")
 
     def generate_new_branch_name(self, file_type="doc"):
@@ -126,10 +130,11 @@ class GitClient:
             logging.error("待提交的文件不存在: %s", file_path)
             return
         try:
-            subprocess.run(['git', 'add', file_path], cwd=self.local_repo_path, check=True)
+            subprocess.run(['git', 'add', file_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                           cwd=self.local_repo_path, check=True)
         except subprocess.CalledProcessError as e:
-            logging.error("尝试执行 git add 时发生错误！返回码：%d 错误信息：%s", e.returncode, e.stderr)
-            raise GitError("add", "file_path")
+            logging.error("尝试执行 git add 时发生错误！\n返回码：%d\n 错误信息：%s", e.returncode, e.stderr)
+            raise GitError("git", "add", "file_path")
         logging.info("git add 成功")
 
     def do_commit(self, commit_message):
@@ -139,10 +144,14 @@ class GitClient:
         """
         logging.info("进行 git commit")
         try:
-            subprocess.run(['git', 'commit', '-m', commit_message], cwd=self.local_repo_path, check=True)
+            subprocess.run(['git', 'commit', '-m', "\"" + commit_message + "\""], stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE, cwd=self.local_repo_path, check=True)
         except subprocess.CalledProcessError as e:
-            logging.error("尝试执行 git commit 时发生错误！返回码：%d 错误信息：%s", e.returncode, e.stderr)
-            raise GitError("commit", "-m " + commit_message)
+            if e.returncode == 1:
+                logging.info("没有更改，无需提交")
+            else:
+                logging.error("尝试执行 git commit 时发生错误！\n返回码：%d\n 错误信息：%s", e.returncode, e.stderr)
+                raise GitError("git", "commit", "-m " + commit_message)
         logging.info("git commit 成功")
 
     def do_push_to_my_repo(self, branch_name):
@@ -155,8 +164,8 @@ class GitClient:
             subprocess.run(['git', 'push', '-u', self.remote_my_repo, branch_name], cwd=self.local_repo_path,
                            check=True)
         except subprocess.CalledProcessError as e:
-            logging.error("尝试执行 git push 时发生错误！返回码：%d 错误信息：%s", e.returncode, e.stderr)
-            raise GitError("push", "-u " + self.remote_my_repo + " " + branch_name)
+            logging.error("尝试执行 git push 时发生错误！\n返回码：%d\n 错误信息：%s", e.returncode, e.stdout)
+            raise GitError("git", "push", "-u " + self.remote_my_repo + " " + branch_name)
         logging.info("git push 成功")
 
     def do_create_pull_request(self, pull_request_info: PullRequestInfo):
@@ -171,10 +180,12 @@ class GitClient:
                                   '--base', pull_request_info.base,
                                   '--head', pull_request_info.head,
                                   '--title', pull_request_info.title,
-                                  '--body', pull_request_info.body], cwd=self.local_repo_path, check=True)
+                                  '--body', pull_request_info.body], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 cwd=self.local_repo_path, check=True)
         except subprocess.CalledProcessError as e:
-            logging.error("尝试执行 git push 时发生错误！返回码：%d 错误信息：%s", e.returncode, e.stderr)
-            raise GitError("pr create", json.dumps(pull_request_info.__dict__))
+            logging.error("尝试执行 git push 时发生错误！\n返回码：%d\n 错误信息：%s", e.returncode, e.stderr)
+
+            raise GitError("gh", "pr create", json.dumps(pull_request_info.__dict__))
         logging.info("pr create 成功")
         logging.info("pr url 是%s ", res.stdout.strip())
         print("新的 pr url: %s", res.stdout.strip())
@@ -184,10 +195,11 @@ class GitClient:
         为 main 创建指定名称的分支
         :param branch_name: 分支名
         """
-        logging.info("执行分支创建git checkout：%s", branch_name)
+        logging.info("执行分支创建 git checkout：%s", branch_name)
         try:
-            subprocess.run(["git", "checkout", "-b", branch_name], cwd=self.local_repo_path, check=True)
+            subprocess.run(["git", "checkout", "-b", branch_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                           cwd=self.local_repo_path, check=True)
         except subprocess.CalledProcessError as e:
-            logging.error("尝试执行 git checkout 时发生错误！返回码：%d 错误信息：%s", e.returncode, e.stderr)
-            raise GitError("git checkout", "-b " + branch_name)
+            logging.error("尝试执行 git checkout 时发生错误！\n返回码：%d\n 错误信息：%s", e.returncode, e.stderr)
+            raise GitError("git", "checkout", "-b " + branch_name)
         logging.info("分支 %s 创建成功", branch_name)
