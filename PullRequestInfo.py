@@ -8,6 +8,14 @@ class PullRequestInfo:
         self._head = head
         self._title = title
         self._body = body
+    def __str__(self):
+        return (
+            f"--repo {self._repo}\n"
+            f"--base {self._base}\n"
+            f"--head {self._head}\n"
+            f"--title {self._title}\n"
+            f"--body {self._body}\n"
+        )
 
     # 使用 @property 装饰器生成 getter 方法
     @property
